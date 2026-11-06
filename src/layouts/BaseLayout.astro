@@ -1,0 +1,93 @@
+---
+import type { AstroComponentFactory } from "astro/runtime/server/index.js";
+import { siteConfig } from "@/config/site";
+import "@/styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+  type?: "website" | "article";
+  noindex?: boolean;
+  structuredData?: Record<string, unknown> | Record<string, unknown>[];
+}
+
+const {
+  title = siteConfig.title,
+  description = siteConfig.description,
+  image = siteConfig.socialImage,
+  type = "website",
+  noindex = false,
+  structuredData,
+} = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, siteConfig.siteUrl).toString();
+const absoluteImage = new URL(image, siteConfig.siteUrl).toString();
+const pageTitle = title === siteConfig.title ? title : `${title} — ${siteConfig.name}`;
+const defaultStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: siteConfig.name,
+  url: siteConfig.siteUrl,
+  description: siteConfig.description,
+  publisher: {
+    "@type": "Person",
+    name: siteConfig.authorName,
+  },
+};
+const schema = structuredData ?? defaultStructuredData;
+
+// Optional: renders nothing once the file is deleted.
+const BuyButton = Object.values(
+  import.meta.glob<{ default: AstroComponentFactory }>("../components/BuyButton.astro", {
+    eager: true,
+  }),
+)[0]?.default;
+---
+
+<!doctype html>
+<html lang={siteConfig.language}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="author" content={siteConfig.authorName} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" type="application/rss+xml" title={`${siteConfig.name} RSS`} href={new URL("/rss.xml", siteConfig.siteUrl).toString()} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    <meta property="og:locale" content={siteConfig.locale} />
+    <meta property="og:type" content={type} />
+    <meta property="og:site_name" content={siteConfig.name} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={absoluteImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@passporto" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={absoluteImage} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
+    <link
+      rel="preload"
+      href="/fonts/instrument-sans-latin-wght-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/marcellus-latin-400-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+  </head>
+  <body>
+    <a href="#main-content" class="skip-link">Skip to content</a>
+    <slot />
+    {BuyButton && <BuyButton />}
+  </body>
+</html>

@@ -1,0 +1,107 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SiteHeader from "@/components/SiteHeader.astro";
+import SiteFooter from "@/components/SiteFooter.astro";
+import { siteConfig } from "@/config/site";
+---
+
+<BaseLayout title="Contact" description="Pitch a story, correct a fact, or say hello. The inbox is small and always read.">
+  <div class="min-h-screen bg-background">
+    <SiteHeader />
+    <main id="main-content">
+    <section class="mx-auto max-w-5xl px-6 pt-14 lg:pt-20">
+      <h1 class="font-display text-5xl leading-[1] md:text-7xl">
+        The inbox is small.<br />It is always read
+      </h1>
+      <p class="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground">
+        Pitches, corrections, and warmly worded disagreements are all welcome. We answer everything within about a
+        week — or a fortnight if a writer is on a train.
+      </p>
+    </section>
+
+    <section class="mx-auto mt-16 grid max-w-5xl gap-16 px-6 pb-24 md:grid-cols-[1.4fr_1fr]">
+      <form data-contact-form data-sent-label="Thank you — we'll be in touch" class="space-y-6">
+        <label class="block">
+          <span class="text-sm font-semibold">Your name</span>
+          <div class="mt-2"><input required class="field" placeholder="First and last" /></div>
+        </label>
+        <label class="block">
+          <span class="text-sm font-semibold">Email</span>
+          <div class="mt-2"><input required type="email" class="field" placeholder="you@example.com" /></div>
+        </label>
+        <label class="block">
+          <span class="text-sm font-semibold">What's this about?</span>
+          <div class="mt-2">
+            <select class="field">
+              <option>A pitch</option>
+              <option>A correction</option>
+              <option>A partnership</option>
+              <option>Just saying hello</option>
+            </select>
+          </div>
+        </label>
+        <label class="block">
+          <span class="text-sm font-semibold">Your note</span>
+          <div class="mt-2"><textarea required rows="6" class="field resize-none" placeholder="Take your time."></textarea></div>
+        </label>
+        <button type="submit" data-submit-label class="btn bg-deep text-on-deep hover:bg-primary">
+          Send note
+        </button>
+      </form>
+
+      <aside class="space-y-8 text-sm">
+        <div>
+          <h2 class="text-sm font-semibold text-foreground">Direct lines</h2>
+          <ul class="mt-3 space-y-1">
+            <li><a class="hover:text-primary" href={`mailto:${siteConfig.email}`}>{siteConfig.email}</a></li>
+            <li><a class="hover:text-primary" href="mailto:pitches@example.com">pitches@example.com</a></li>
+            <li><a class="hover:text-primary" href="mailto:corrections@example.com">corrections@example.com</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="text-sm font-semibold text-foreground">Post</h2>
+          <address class="mt-3 not-italic text-muted-foreground">
+            {siteConfig.name}<br />
+            Rua da Boavista 121<br />
+            4050-107 Porto, Portugal
+          </address>
+        </div>
+        <div>
+          <h2 class="text-sm font-semibold text-foreground">On pitching</h2>
+          <p class="mt-3 text-muted-foreground">
+            We commission 8–10 outside pieces a year. Send a paragraph, not a deck. Reported essays land better
+            than round-ups.
+          </p>
+        </div>
+      </aside>
+    </section>
+    </main>
+
+    <SiteFooter />
+  </div>
+</BaseLayout>
+
+<style>
+  .field {
+    width: 100%;
+    border: 1px solid var(--border);
+    background: transparent;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    outline: none;
+  }
+  .field:focus {
+    border-color: var(--primary);
+  }
+</style>
+
+<script>
+  document.addEventListener("submit", (event) => {
+    const form = (event.target as HTMLElement)?.closest?.("[data-contact-form]") as HTMLFormElement | null;
+    if (!form) return;
+    event.preventDefault();
+    const button = form.querySelector<HTMLButtonElement>("[data-submit-label]");
+    const sentLabel = form.dataset.sentLabel;
+    if (button && sentLabel) button.textContent = sentLabel;
+  });
+</script>

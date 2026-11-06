@@ -1,0 +1,175 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SiteHeader from "@/components/SiteHeader.astro";
+import SiteFooter from "@/components/SiteFooter.astro";
+import { buildSearchIndex } from "@/lib/search-index";
+
+/**
+ * Full-archive search. The page rests on the field alone; the script below
+ * reveals, filters, and reorders the rows in place once there is a query.
+ *
+ * The whole index is still rendered server-side, and the `noscript` rule
+ * unhides it, so the archive stays browsable without JavaScript.
+ */
+const index = await buildSearchIndex();
+---
+
+<BaseLayout
+  title="Search"
+  description="Search the Passporto archive of journal entries and destination guides."
+  noindex
+>
+  <div class="min-h-screen bg-background">
+    <SiteHeader />
+
+    <main id="main-content">
+      <section class="mx-auto max-w-4xl px-6 pt-14 lg:px-10 lg:pt-20">
+        <h1 class="font-display text-5xl leading-[1] md:text-6xl">
+          The whole archive
+        </h1>
+
+        <form action="/search/" method="get" role="search" aria-label="Search the archive" class="mt-10">
+          <label class="sr-only" for="search-page-input">Search stories and guides</label>
+          <div class="flex items-center gap-3 border border-border bg-card pl-4 focus-within:border-foreground">
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              class="shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="m16.5 16.5 4 4" />
+            </svg>
+            <input
+              id="search-page-input"
+              name="q"
+              type="search"
+              data-search-page-input
+              placeholder="Search stories, guides, places"
+              autocomplete="off"
+              enterkeyhint="search"
+              class="h-14 w-full min-w-0 bg-transparent text-lg outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden"
+            />
+            <button
+              type="submit"
+              class="btn m-1.5 shrink-0 bg-deep text-on-deep hover:bg-primary"
+            >
+              Search
+            </button>
+          </div>
+        </form>
+
+        <p data-search-page-summary aria-live="polite" class="mt-5 text-sm text-muted-foreground">
+          Type to search {index.length} stories and guides.
+        </p>
+      </section>
+
+      <section class="mx-auto mt-10 max-w-4xl px-6 pb-24 lg:px-10">
+        <noscript>
+          <style>
+            /* Nothing will reveal the archive here, so leave it on the page. */
+            [data-search-page-results][hidden] {
+              display: grid !important;
+            }
+          </style>
+        </noscript>
+
+        <ol data-search-page-results hidden class="grid">
+          {
+            index.map((item) => (
+              <li class="border-t border-border">
+                <a href={item.href} class="group flex items-start justify-between gap-6 py-7">
+                  <span class="min-w-0">
+                    <span class="meta flex flex-wrap items-baseline gap-1.5">
+                      <span class="font-semibold text-primary">{item.type}</span>
+                      <span>· {item.meta.join(" · ")}</span>
+                    </span>
+                    <span class="mt-2 block font-display text-2xl leading-tight transition-colors group-hover:text-primary md:text-3xl">
+                      {item.title}
+                    </span>
+                    <span class="mt-2 block max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                      {item.excerpt}
+                    </span>
+                  </span>
+                  <span class="mt-1 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1">
+                    →
+                  </span>
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+
+        <div data-search-page-empty hidden class="border-t border-border py-12">
+          <div>
+            <p class="font-display text-2xl leading-tight">Nothing matches that yet</p>
+            <p class="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Try a title, a category, or a place — “Kyoto”, “food”, “city guides”.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <SiteFooter />
+
+    <script type="application/json" data-search-page-data is:inline set:html={JSON.stringify(index)} />
+  </div>
+</BaseLayout>
+
+<script>
+  import { rankedPositions, resultCount, type SearchItem } from "@/lib/search";
+
+  const input = document.querySelector<HTMLInputElement>("[data-search-page-input]");
+  const list = document.querySelector<HTMLElement>("[data-search-page-results]");
+  const summary = document.querySelector<HTMLElement>("[data-search-page-summary]");
+  const empty = document.querySelector<HTMLElement>("[data-search-page-empty]");
+  const dataEl = document.querySelector("[data-search-page-data]");
+
+  if (input && list && summary && empty && dataEl) {
+    const items: SearchItem[] = JSON.parse(dataEl.textContent || "[]");
+    const rows = Array.from(list.children) as HTMLElement[];
+
+    const render = () => {
+      const query = input.value.trim();
+      const positions = rankedPositions(items, query);
+      const matched = new Set(positions);
+
+      // Rows stay put in the DOM; grid order carries the ranking.
+      positions.forEach((position, order) => {
+        rows[position].style.order = String(order);
+      });
+      rows.forEach((row, position) => {
+        row.hidden = !matched.has(position);
+      });
+
+      summary.textContent = query
+        ? `${resultCount(positions.length)} for “${query}”.`
+        : `Type to search ${items.length} stories and guides.`;
+
+      // The page rests on the field alone; results appear once there is a query.
+      list.hidden = !query;
+      empty.hidden = !query || positions.length > 0;
+    };
+
+    input.value = new URLSearchParams(window.location.search).get("q") ?? "";
+    render();
+    if (!input.value) input.focus();
+
+    input.addEventListener("input", () => {
+      render();
+
+      // Keep the address bar shareable without adding history entries.
+      const url = new URL(window.location.href);
+      const query = input.value.trim();
+      if (query) url.searchParams.set("q", query);
+      else url.searchParams.delete("q");
+      window.history.replaceState({}, "", url);
+    });
+  }
+</script>

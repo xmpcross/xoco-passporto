@@ -1,0 +1,16 @@
+---
+interface Props {
+  src: string;
+  poster: string;
+  class?: string;
+}
+
+const { src, poster, class: className } = Astro.props;
+---
+
+<div class={`relative w-full overflow-hidden bg-ink ${className ?? "aspect-[16/9]"}`}>
+  <video controls preload="metadata" playsinline poster={poster} class="absolute inset-0 h-full w-full object-cover">
+    <source src={src} type="video/mp4" />
+    Your browser doesn't support embedded video.
+  </video>
+</div>

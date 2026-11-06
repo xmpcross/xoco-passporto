@@ -1,0 +1,204 @@
+---
+import { getCollection } from "astro:content";
+import { getImage, Image } from "astro:assets";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SiteHeader from "@/components/SiteHeader.astro";
+import SiteFooter from "@/components/SiteFooter.astro";
+import PostCard from "@/components/PostCard.astro";
+import { categories } from "@/config/categories";
+import { byNewest, formatDate, postHref, readingMinutes, visiblePosts } from "@/lib/content";
+
+const PAGE_SIZE = 6;
+const SPOTLIGHT_WIDTHS = [640, 960, 1280];
+const SPOTLIGHT_SIZES = "(max-width: 767px) 100vw, 58vw";
+
+const allPosts = visiblePosts(await getCollection("posts")).sort(byNewest);
+const featured = allPosts.find((p) => p.data.featured) ?? allPosts[0];
+const rest = allPosts.filter((p) => p.id !== featured.id);
+
+const spotlightData = await Promise.all(
+  allPosts.map(async (post) => {
+    const optimized = await Promise.all(SPOTLIGHT_WIDTHS.map((width) => getImage({ src: post.data.cover.src, width })));
+    const largest = optimized.at(-1);
+    return {
+      id: post.id,
+      href: postHref(post),
+      category: post.data.category,
+      location: post.data.location,
+      date: formatDate(post.data.date),
+      readingMinutes: readingMinutes(post),
+      title: post.data.title,
+      dek: post.data.dek,
+      cover: largest?.src,
+      coverSrcset: optimized.map((image, index) => `${image.src} ${SPOTLIGHT_WIDTHS[index]}w`).join(", "),
+      coverAlt: post.data.cover.alt,
+      featured: post.data.featured,
+    };
+  }),
+);
+---
+
+<BaseLayout title="The Journal" description="Long-form travel dispatches: field notes, city guides, slow-travel essays, and food writing.">
+  <div class="min-h-screen bg-background">
+    <SiteHeader />
+
+    <main id="main-content">
+      <section class="mx-auto max-w-7xl px-6 pt-14 lg:px-10 lg:pt-20">
+        <h1 class="max-w-3xl font-display text-5xl leading-[1] md:text-7xl">Every story, in one place</h1>
+        <p class="mt-5 max-w-xl text-[1.0625rem] leading-relaxed text-muted-foreground">
+          {allPosts.length} stories across {categories.length} sections. Pick a thread, or just scroll.
+        </p>
+
+        <div
+          class="sticky-bar no-scrollbar z-20 -mx-6 mt-10 border-b border-border bg-background px-6 lg:-mx-10 lg:px-10"
+          data-category-filter
+          role="group"
+          aria-label="Filter by section"
+        >
+          <div class="flex min-w-max gap-6">
+            {
+              ["All", ...categories].map((c) => (
+                <button
+                  type="button"
+                  data-category-button={c}
+                  aria-pressed={c === "All" ? "true" : "false"}
+                  class="relative py-4 text-[0.9375rem] font-medium text-muted-foreground transition-colors hover:text-foreground aria-pressed:text-foreground aria-pressed:after:absolute aria-pressed:after:inset-x-0 aria-pressed:after:bottom-0 aria-pressed:after:h-0.5 aria-pressed:after:bg-foreground"
+                >
+                  {c}
+                </button>
+              ))
+            }
+          </div>
+        </div>
+
+        <a href={postHref(featured)} data-spotlight class="group mt-12 grid gap-8 md:grid-cols-12 md:items-center">
+          <div class="relative aspect-[4/3] overflow-hidden bg-muted md:col-span-7">
+            <Image
+              src={featured.data.cover.src}
+              alt=""
+              widths={SPOTLIGHT_WIDTHS}
+              sizes={SPOTLIGHT_SIZES}
+              loading="eager"
+              data-spotlight-image
+              class="h-full w-full object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-105"
+            />
+            <span data-spotlight-category class="tag absolute left-4 top-4">{featured.data.category}</span>
+          </div>
+          <div class="md:col-span-5 md:pl-4">
+            <h2 data-spotlight-title class="font-display text-4xl leading-[1.05] transition-colors group-hover:text-primary md:text-5xl">
+              {featured.data.title}
+            </h2>
+            <p data-spotlight-dek class="mt-4 text-[1.0625rem] leading-relaxed text-muted-foreground">{featured.data.dek}</p>
+            <p data-spotlight-meta class="meta mt-5">
+              {featured.data.location} · {formatDate(featured.data.date)} · {readingMinutes(featured)} min
+            </p>
+            <span class="btn mt-7 border border-foreground/20 group-hover:border-foreground">Read the story <span aria-hidden="true">→</span></span>
+          </div>
+        </a>
+
+        <div class="mt-20 grid gap-x-8 gap-y-14 border-t border-border pt-14 md:grid-cols-2 lg:grid-cols-3" data-grid>
+          {
+            rest.map((post, i) => (
+              <div data-card data-id={post.id} data-category={post.data.category} data-index={i} class={i >= PAGE_SIZE ? "hidden" : ""}>
+                <PostCard post={post} />
+              </div>
+            ))
+          }
+        </div>
+
+        <div class="mt-16 flex justify-center">
+          <button type="button" data-load-more class="btn border border-foreground/20 hover:border-foreground hover:bg-foreground hover:text-background">
+            Load more stories
+          </button>
+        </div>
+      </section>
+    </main>
+    <SiteFooter />
+  </div>
+
+  <script type="application/json" data-posts-json is:inline set:html={JSON.stringify(spotlightData)} />
+  <script define:vars={{ pageSize: PAGE_SIZE, spotlightSizes: SPOTLIGHT_SIZES, categories }} is:inline>
+    const posts = JSON.parse(document.querySelector("[data-posts-json]").textContent || "[]");
+    const filterEl = document.querySelector("[data-category-filter]");
+    const spotlight = document.querySelector("[data-spotlight]");
+    const loadMoreBtn = document.querySelector("[data-load-more]");
+    const cards = Array.from(document.querySelectorAll("[data-card]"));
+    const buttons = Array.from(filterEl?.querySelectorAll("[data-category-button]") ?? []);
+
+    const requested = new URLSearchParams(window.location.search).get("category");
+    let category = categories.includes(requested) ? requested : "All";
+    let page = 1;
+
+    const render = () => {
+      buttons.forEach((b) => b.setAttribute("aria-pressed", String(b.getAttribute("data-category-button") === category)));
+
+      const candidates = category === "All" ? posts : posts.filter((p) => p.category === category);
+      const spotlightPost = candidates.find((p) => p.featured) ?? candidates[0];
+
+      if (spotlightPost && spotlight) {
+        spotlight.style.display = "";
+        spotlight.setAttribute("href", spotlightPost.href);
+        const img = spotlight.querySelector("[data-spotlight-image]");
+        if (img) {
+          img.src = spotlightPost.cover;
+          img.srcset = spotlightPost.coverSrcset;
+          img.sizes = spotlightSizes;
+          img.alt = spotlightPost.coverAlt;
+        }
+        const categoryLabel = spotlight.querySelector("[data-spotlight-category]");
+        if (categoryLabel) categoryLabel.textContent = spotlightPost.category;
+        const meta = spotlight.querySelector("[data-spotlight-meta]");
+        if (meta) meta.textContent = `${spotlightPost.location} · ${spotlightPost.date} · ${spotlightPost.readingMinutes} min`;
+        const titleEl = spotlight.querySelector("[data-spotlight-title]");
+        if (titleEl) titleEl.textContent = spotlightPost.title;
+        const dekEl = spotlight.querySelector("[data-spotlight-dek]");
+        if (dekEl) dekEl.textContent = spotlightPost.dek;
+      } else if (spotlight) {
+        spotlight.style.display = "none";
+      }
+
+      let shownCount = 0;
+      const limit = page * pageSize;
+      let matchedTotal = 0;
+      cards.forEach((card) => {
+        const matches =
+          (category === "All" || card.dataset.category === category) &&
+          !(spotlightPost && card.dataset.id === spotlightPost.id);
+        if (!matches) {
+          card.classList.add("hidden");
+          return;
+        }
+        matchedTotal += 1;
+        if (shownCount < limit) {
+          card.classList.remove("hidden");
+          shownCount += 1;
+        } else {
+          card.classList.add("hidden");
+        }
+      });
+
+      if (loadMoreBtn) loadMoreBtn.classList.toggle("hidden", shownCount >= matchedTotal);
+    };
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        category = button.getAttribute("data-category-button") || "All";
+        page = 1;
+
+        const url = new URL(window.location.href);
+        if (category === "All") url.searchParams.delete("category");
+        else url.searchParams.set("category", category);
+        window.history.replaceState({}, "", url);
+
+        render();
+      });
+    });
+
+    loadMoreBtn?.addEventListener("click", () => {
+      page += 1;
+      render();
+    });
+
+    render();
+  </script>
+</BaseLayout>

@@ -1,0 +1,125 @@
+---
+import { siteConfig } from "@/config/site";
+
+interface Props {
+  variant?: "footer" | "inline" | "stacked";
+}
+
+const { variant = "footer" } = Astro.props;
+const { action, method, emailFieldName } = siteConfig.newsletter;
+const field =
+  "min-h-12 flex-1 border border-foreground/15 bg-background px-4 text-[0.9375rem] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground";
+const button = "btn min-h-12 bg-deep px-6 text-on-deep hover:bg-primary";
+---
+
+{
+  variant === "inline" && (
+    <form
+      data-newsletter-form
+      data-sent-label="See you Sunday →"
+      action={action || undefined}
+      method={method}
+      class="flex w-full max-w-md items-center gap-2 border-b border-foreground/30 pb-2"
+    >
+      <input
+        type="email"
+        name={emailFieldName}
+        required
+        autocomplete="email"
+        aria-label="Email address"
+        placeholder="you@example.com"
+        class="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+      />
+      <button type="submit" data-submit-label class="text-sm font-semibold text-primary">
+        Subscribe →
+      </button>
+    </form>
+  )
+}
+
+{
+  variant === "stacked" && (
+    <section class="w-full border border-border px-6 py-10 text-foreground md:px-10">
+      <h2 class="font-display text-3xl leading-[1.05] md:text-4xl">One letter, every other Sunday</h2>
+      <p class="mt-3 max-w-lg text-[0.9375rem] leading-relaxed text-muted-foreground">
+        A short essay from wherever I am, three things worth reading, and one restaurant I'd send a friend to. No
+        affiliate links, no pop-ups.
+      </p>
+      <form
+        data-newsletter-form
+        data-sent-label="You're on the list"
+        action={action || undefined}
+        method={method}
+        class="mt-6 flex w-full flex-col gap-2 sm:flex-row"
+      >
+        <input
+          type="email"
+          name={emailFieldName}
+          required
+          autocomplete="email"
+          aria-label="Email address"
+          placeholder="you@example.com"
+          class={field}
+        />
+        <button type="submit" data-submit-label class={button}>
+          Subscribe
+        </button>
+      </form>
+      <p class="meta mt-4">2,400+ readers. Unsubscribe anytime.</p>
+    </section>
+  )
+}
+
+{
+  variant === "footer" && (
+    <div id="newsletter" class="scroll-mt-24">
+      <h2 class="font-display text-3xl leading-tight md:text-4xl">One letter, every other Sunday</h2>
+      <p class="mt-3 max-w-md text-[0.9375rem] leading-relaxed text-on-deep/65">
+        A short essay, three things worth reading, and a restaurant I'd send a friend to. No affiliate links, no
+        pop-ups.
+      </p>
+      <form
+        data-newsletter-form
+        data-sent-label="You're on the list"
+        action={action || undefined}
+        method={method}
+        class="mt-6 flex w-full max-w-lg flex-col gap-2 sm:flex-row"
+      >
+        <input
+          type="email"
+          name={emailFieldName}
+          required
+          autocomplete="email"
+          aria-label="Email address"
+          placeholder="you@example.com"
+          class="min-h-12 flex-1 border border-on-deep/20 bg-transparent px-4 text-[0.9375rem] text-on-deep outline-none placeholder:text-on-deep/45 focus:border-on-deep"
+        />
+        <button type="submit" data-submit-label class="btn min-h-12 bg-on-deep px-6 text-deep hover:bg-sand">
+          Subscribe
+        </button>
+      </form>
+      <p class="mt-3 text-sm text-on-deep/50">2,400+ readers. Unsubscribe anytime.</p>
+    </div>
+  )
+}
+
+<script>
+  document.addEventListener("submit", async (event) => {
+    const form = (event.target as HTMLElement)?.closest?.("[data-newsletter-form]") as HTMLFormElement | null;
+    if (!form) return;
+    event.preventDefault();
+
+    const action = form.getAttribute("action");
+    if (action) {
+      try {
+        await fetch(action, { method: form.getAttribute("method") || "post", body: new FormData(form) });
+      } catch {
+        // Best-effort: still show the confirmation state below.
+      }
+    }
+
+    const button = form.querySelector<HTMLButtonElement>("[data-submit-label]");
+    const sentLabel = form.dataset.sentLabel;
+    if (button && sentLabel) button.textContent = sentLabel;
+  });
+</script>

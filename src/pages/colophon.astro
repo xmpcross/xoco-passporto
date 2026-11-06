@@ -1,0 +1,55 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SiteHeader from "@/components/SiteHeader.astro";
+import SiteFooter from "@/components/SiteFooter.astro";
+---
+
+<BaseLayout title="Colophon" description="How this publication is made: type, tools, editorial policy, and a note about corrections.">
+  <div class="min-h-screen bg-background">
+    <SiteHeader />
+    <main id="main-content">
+    <section class="mx-auto max-w-3xl px-6 pt-20 pb-24 lg:pt-24">
+      <h1 class="font-display text-5xl leading-[1.02] md:text-6xl">A few notes on how this is made</h1>
+
+      <div class="prose-editorial mt-12 space-y-8 text-base leading-relaxed">
+        <section>
+          <h2 class="font-display text-2xl">Type</h2>
+          <p class="mt-2 text-muted-foreground">
+            Headlines are set in Marcellus, a calm high-contrast serif with classical proportions. Body text and
+            metadata use Instrument Sans. Both are self-hosted, so the theme ships without external font requests.
+          </p>
+        </section>
+        <section>
+          <h2 class="font-display text-2xl">Tools</h2>
+          <p class="mt-2 text-muted-foreground">
+            Drafts start in a paper notebook. They pass through iA Writer, then a shared Google Doc for edits, and
+            finally the site's own content files. Photographs are shot on a Fujifilm X-T5 or a phone.
+          </p>
+        </section>
+        <section>
+          <h2 class="font-display text-2xl">Editorial policy</h2>
+          <p class="mt-2 text-muted-foreground">
+            We accept no free hotel stays, no press trips, and no affiliate revenue. Meals are sometimes comped; we
+            say so at the bottom of the piece when they are. Guides are re-checked once a year, and anything
+            closed is removed within a month.
+          </p>
+        </section>
+        <section>
+          <h2 class="font-display text-2xl">Corrections</h2>
+          <p class="mt-2 text-muted-foreground">
+            We correct in place and note the change at the foot of the piece with a date. Structural rewrites are
+            marked as such.
+          </p>
+        </section>
+        <section>
+          <h2 class="font-display text-2xl">Built with</h2>
+          <p class="mt-2 text-muted-foreground">
+            Astro, Tailwind CSS, and a lot of coffee at Combi in Porto.
+          </p>
+        </section>
+      </div>
+    </section>
+    </main>
+    <SiteFooter />
+  </div>
+</BaseLayout>

@@ -1,0 +1,21 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SiteHeader from "@/components/SiteHeader.astro";
+import SiteFooter from "@/components/SiteFooter.astro";
+---
+
+<BaseLayout title="Page not found" noindex>
+  <div class="min-h-screen bg-background">
+    <SiteHeader />
+    <main id="main-content">
+    <div class="mx-auto max-w-2xl px-6 py-40 text-center">
+      <h1 class="font-display text-5xl">This page has wandered off</h1>
+      <p class="mt-4 text-sm text-muted-foreground">
+        The page you're looking for doesn't exist or has been moved.
+      </p>
+      <a href="/blog/" class="btn mt-8 bg-deep text-on-deep hover:bg-primary">Back to the journal</a>
+    </div>
+    </main>
+    <SiteFooter />
+  </div>
+</BaseLayout>

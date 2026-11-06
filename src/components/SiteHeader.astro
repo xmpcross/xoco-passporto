@@ -1,0 +1,260 @@
+---
+import { getCollection } from "astro:content";
+import { navigation } from "@/config/site";
+import { destinationHref } from "@/lib/content";
+import SearchDialog from "@/components/SearchDialog.astro";
+
+interface Props {
+  /** The page opens on a full-bleed image: start with light text over it. */
+  overlay?: boolean;
+}
+
+const { overlay = false } = Astro.props;
+const destinations = await getCollection("destinations");
+const currentPath = Astro.url.pathname;
+const isActive = (href: string) => (href === "/" ? currentPath === "/" : currentPath.startsWith(href));
+---
+
+<header class="site-header" data-site-header data-overlay={overlay ? "" : undefined}>
+  <div class="mx-auto flex h-[var(--header-h)] max-w-7xl items-center justify-between gap-6 px-6 lg:px-10">
+    <a href="/" class="font-display text-[1.6rem] leading-none tracking-tight">Passporto</a>
+    <nav class="hidden items-center gap-1 md:flex" aria-label="Primary navigation">
+      {
+        navigation.map((n) => (
+          <a
+            href={n.href}
+            aria-current={isActive(n.href) ? "page" : undefined}
+            class:list={[
+              "relative px-3 py-2 text-[0.9375rem] font-medium transition-opacity hover:opacity-100",
+              isActive(n.href) ? "opacity-100" : "opacity-75",
+            ]}
+          >
+            {n.label}
+            {isActive(n.href) && <span aria-hidden="true" class="absolute inset-x-3 -bottom-px h-px bg-current" />}
+          </a>
+        ))
+      }
+    </nav>
+    <div class="flex items-center gap-1">
+      <a
+        href="/search/"
+        data-search-toggle
+        aria-label="Search stories and guides"
+        aria-haspopup="dialog"
+        aria-controls="search-dialog"
+        aria-keyshortcuts="Control+K Meta+K"
+        class="inline-grid h-10 w-10 place-items-center opacity-80 transition-opacity hover:opacity-100"
+      >
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="m16.5 16.5 4 4" />
+        </svg>
+      </a>
+      <button
+        type="button"
+        aria-label="Open menu"
+        aria-expanded="false"
+        aria-controls="mobile-drawer"
+        data-menu-toggle
+        class="inline-grid h-10 w-10 place-items-center md:hidden"
+      >
+        <span class="block space-y-1.5">
+          <span class="block h-px w-6 bg-current"></span>
+          <span class="block h-px w-6 bg-current"></span>
+        </span>
+      </button>
+    </div>
+  </div>
+</header>
+
+{!overlay && <div class="header-spacer" aria-hidden="true"></div>}
+
+<div class="md:hidden">
+  <div
+    data-menu-backdrop
+    aria-hidden="true"
+    class="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm pointer-events-none opacity-0 transition-opacity duration-300"
+  >
+  </div>
+  <div
+    id="mobile-drawer"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Site navigation"
+    aria-hidden="true"
+    inert
+    data-menu-panel
+    class="fixed right-0 top-0 z-50 flex h-[100dvh] w-[86vw] max-w-sm translate-x-full flex-col bg-background transition-transform duration-300 ease-out"
+  >
+    <div class="flex h-[var(--header-h)] items-center justify-between border-b border-border px-6">
+      <span class="font-display text-xl leading-none">Passporto</span>
+      <button
+        type="button"
+        aria-label="Close menu"
+        data-menu-close
+        class="grid h-10 w-10 place-items-center border border-border transition-colors hover:bg-ink hover:text-background"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="m6 6 12 12M18 6 6 18" />
+        </svg>
+      </button>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-6 py-6" aria-label="Mobile navigation">
+      <ul>
+        {
+          navigation.map((n) => (
+            <li>
+              <a
+                href={n.href}
+                aria-current={isActive(n.href) ? "page" : undefined}
+                class:list={[
+                  "group flex items-center justify-between py-3 font-display text-3xl leading-tight",
+                  isActive(n.href) ? "text-primary" : "",
+                ]}
+              >
+                {n.label}
+                <span aria-hidden="true" class="text-base text-muted-foreground transition-transform group-hover:translate-x-1">→</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+
+      <div class="mt-8 border-t border-border pt-6">
+        <p class="text-sm font-semibold">Destination guides</p>
+        <ul class="mt-3 space-y-1">
+          {
+            destinations.map((d) => (
+              <li>
+                <a href={destinationHref(d)} class="flex items-baseline justify-between py-1.5 text-[0.9375rem] hover:text-primary">
+                  {d.data.name}
+                  <span class="meta">{d.data.country}</span>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </nav>
+
+    <div class="border-t border-border bg-sand/40 px-6 py-5">
+      <p class="font-display text-lg leading-tight">One letter, every other Sunday</p>
+      <a href="#newsletter" class="mt-2 inline-flex text-sm font-semibold text-primary hover:underline">Get the dispatch →</a>
+    </div>
+  </div>
+</div>
+
+<SearchDialog />
+
+<script>
+  const header = document.querySelector<HTMLElement>("[data-site-header]");
+  const toggle = document.querySelector<HTMLButtonElement>("[data-menu-toggle]");
+  const backdrop = document.querySelector<HTMLElement>("[data-menu-backdrop]");
+  const panel = document.querySelector<HTMLElement>("[data-menu-panel]");
+  const closeBtn = document.querySelector<HTMLButtonElement>("[data-menu-close]");
+
+  let menuOpen = false;
+
+  if (header) {
+    let lastY = window.scrollY;
+    let queued = false;
+
+    const update = () => {
+      queued = false;
+      const y = Math.max(0, window.scrollY);
+      const delta = y - lastY;
+
+      header.toggleAttribute("data-scrolled", y > 4);
+      // Small jitters (trackpads, iOS bounce) should not flicker the bar.
+      if (Math.abs(delta) > 6) {
+        header.toggleAttribute("data-hidden", delta > 0 && y > header.offsetHeight * 2 && !menuOpen);
+        lastY = y;
+      }
+      if (y <= 4) header.removeAttribute("data-hidden");
+    };
+
+    update();
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (queued) return;
+        queued = true;
+        window.requestAnimationFrame(update);
+      },
+      { passive: true },
+    );
+  }
+
+  if (toggle && backdrop && panel && closeBtn) {
+    let previousOverflow = "";
+    let previouslyFocused: Element | null = null;
+    const focusableSelector =
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+    const getFocusable = () =>
+      Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+        (el) => !el.hasAttribute("disabled") && el.offsetParent !== null,
+      );
+
+    const render = () => {
+      toggle.setAttribute("aria-expanded", String(menuOpen));
+      toggle.setAttribute("aria-label", menuOpen ? "Close menu" : "Open menu");
+
+      backdrop.classList.toggle("opacity-100", menuOpen);
+      backdrop.classList.toggle("pointer-events-none", !menuOpen);
+      backdrop.classList.toggle("opacity-0", !menuOpen);
+
+      panel.classList.toggle("translate-x-0", menuOpen);
+      panel.classList.toggle("translate-x-full", !menuOpen);
+      panel.classList.toggle("shadow-2xl", menuOpen);
+      panel.setAttribute("aria-hidden", String(!menuOpen));
+      panel.toggleAttribute("inert", !menuOpen);
+
+      if (menuOpen) {
+        previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = previousOverflow;
+      }
+    };
+
+    const setOpen = (next: boolean, restoreFocus = true) => {
+      if (menuOpen === next) return;
+      if (next) previouslyFocused = document.activeElement;
+      menuOpen = next;
+      render();
+      if (menuOpen) {
+        closeBtn.focus({ preventScroll: true });
+      } else if (restoreFocus && previouslyFocused instanceof HTMLElement) {
+        previouslyFocused.focus({ preventScroll: true });
+        previouslyFocused = null;
+      }
+    };
+
+    toggle.addEventListener("click", () => setOpen(!menuOpen));
+    closeBtn.addEventListener("click", () => setOpen(false));
+    backdrop.addEventListener("click", () => setOpen(false));
+    panel
+      .querySelectorAll("a")
+      .forEach((link) => link.addEventListener("click", () => setOpen(false, false)));
+    window.addEventListener("keydown", (e) => {
+      if (!menuOpen) return;
+      if (e.key === "Escape") setOpen(false);
+      if (e.key !== "Tab") return;
+
+      const focusable = getFocusable();
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
+  }
+</script>

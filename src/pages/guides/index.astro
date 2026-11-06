@@ -1,0 +1,66 @@
+---
+import { getCollection } from "astro:content";
+import { Image } from "astro:assets";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SiteHeader from "@/components/SiteHeader.astro";
+import SiteFooter from "@/components/SiteFooter.astro";
+import { destinationHref } from "@/lib/content";
+
+const destinations = await getCollection("destinations");
+---
+
+<BaseLayout title="Destination Guides" description="Field-checked destination guides — where to stay, what to eat, when to go. Written slowly, updated yearly.">
+  <div class="min-h-screen bg-background">
+    <SiteHeader />
+
+    <main id="main-content">
+      <section class="mx-auto max-w-7xl px-6 pt-14 lg:px-10 lg:pt-20">
+        <h1 class="max-w-3xl font-display text-5xl leading-[1] md:text-7xl">Written slowly. Updated yearly</h1>
+        <p class="mt-5 max-w-xl text-[1.0625rem] leading-relaxed text-muted-foreground">
+          Each guide is edited on the ground. If a restaurant closes, the recommendation goes with it. If a hotel
+          changes hands, we say so.
+        </p>
+      </section>
+
+      <section class="mx-auto mt-12 max-w-7xl px-6 lg:px-10">
+        <ul class="grid gap-x-6 gap-y-12 md:grid-cols-2">
+          {
+            destinations.map((d, i) => (
+              <li class:list={[i === 0 && "md:col-span-2"]}>
+                <a href={destinationHref(d)} class="group block">
+                  <div class:list={["relative overflow-hidden bg-muted", i === 0 ? "aspect-[4/3] md:aspect-[21/9]" : "aspect-[4/3]"]}>
+                    <Image
+                      src={d.data.cover.src}
+                      alt={d.data.cover.alt}
+                      widths={[480, 720, 960, 1280, 1920]}
+                      sizes={i === 0 ? "(max-width: 1279px) 100vw, 80rem" : "(max-width: 767px) 100vw, 50vw"}
+                      loading={i === 0 ? "eager" : "lazy"}
+                      class="h-full w-full object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-105"
+                    />
+                    <div class="absolute inset-0 bg-gradient-to-t from-ink/75 via-transparent to-transparent" />
+                    <div class="absolute inset-x-0 bottom-0 p-6 text-background md:p-8">
+                      <p class="text-sm text-background/75">{d.data.country}</p>
+                      <h2 class:list={["mt-1 font-display leading-none", i === 0 ? "text-6xl md:text-8xl" : "text-5xl md:text-6xl"]}>
+                        {d.data.name}
+                      </h2>
+                    </div>
+                  </div>
+                  <div class:list={["mt-5 grid gap-4", i === 0 && "md:grid-cols-[1fr_auto] md:items-end md:gap-12"]}>
+                    <div>
+                      <p class="font-display text-2xl leading-snug">{d.data.tagline}</p>
+                      <p class="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-muted-foreground">{d.data.intro}</p>
+                    </div>
+                    <span class="btn w-fit border border-foreground/20 group-hover:border-foreground group-hover:bg-foreground group-hover:text-background">
+                      Open the guide <span aria-hidden="true">→</span>
+                    </span>
+                  </div>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </section>
+    </main>
+    <SiteFooter />
+  </div>
+</BaseLayout>

@@ -1,0 +1,382 @@
+---
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+
+/**
+ * Every photo at once, packed into justified rows: each row runs the full
+ * width at one height, and each frame keeps its own proportions instead of
+ * being cropped into a grid slot. Rows are planned in the writer's order, so
+ * the sequence is never rearranged. Clicking a frame opens the lightbox.
+ */
+interface Photo {
+  src: ImageMetadata;
+  alt: string;
+  caption?: string;
+}
+
+interface Props {
+  photos: Photo[];
+  /** Printed under the whole set. Per-photo captions show in the lightbox. */
+  caption?: string;
+}
+
+const { photos, caption } = Astro.props;
+const single = photos.length === 1;
+---
+
+{
+  photos.length > 0 && (
+    <figure class="not-prose" data-gallery-root>
+      <div class:list={["gallery-rows", single && "is-justified"]} data-gallery>
+        {photos.map((photo, i) => (
+          <button
+            type="button"
+            class="gallery-frame"
+            data-gallery-tile
+            data-index={i}
+            data-caption={photo.caption ?? ""}
+            style={single ? `aspect-ratio: ${photo.src.width} / ${photo.src.height}` : undefined}
+            aria-label={`Open photo ${i + 1} of ${photos.length}: ${photo.alt}`}
+          >
+            <Image
+              src={photo.src}
+              alt={photo.alt}
+              widths={[480, 720, 960, 1280, 1600]}
+              sizes={single ? "(max-width: 1023px) 100vw, 56rem" : "(min-width: 64rem) 40vw, (min-width: 40rem) 50vw, 100vw"}
+              loading="lazy"
+              decoding="async"
+            />
+          </button>
+        ))}
+      </div>
+
+      {caption && <figcaption class="meta mt-3">{caption}</figcaption>}
+
+      <div
+        data-gallery-lightbox
+        role="dialog"
+        aria-modal="true"
+        aria-label="Photo viewer"
+        class="fixed inset-0 z-50 hidden touch-pan-y items-center justify-center bg-ink/95 p-4 sm:p-6"
+      >
+        <button
+          type="button"
+          aria-label="Close"
+          data-gallery-close
+          class="absolute right-4 top-4 z-10 grid h-11 w-11 place-items-center text-background/80 transition-colors hover:bg-background/10 hover:text-background sm:right-6 sm:top-6"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
+        {!single && (
+          <>
+            <button
+              type="button"
+              aria-label="Previous photo"
+              data-gallery-lb-prev
+              class="absolute left-4 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center border border-background/25 text-background/85 transition-colors hover:bg-background/10 hover:text-background md:grid lg:left-6"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                <path d="m15 6-6 6 6 6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label="Next photo"
+              data-gallery-lb-next
+              class="absolute right-4 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center border border-background/25 text-background/85 transition-colors hover:bg-background/10 hover:text-background md:grid lg:right-6"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </button>
+          </>
+        )}
+        <figure class="max-h-[88vh] w-full max-w-6xl">
+          {photos.map((photo, i) => (
+            <Image
+              src={photo.src}
+              alt={photo.alt}
+              widths={[720, 1080, 1440, 1920]}
+              sizes="90vw"
+              loading="lazy"
+              data-lightbox-image
+              data-index={i}
+              class="mx-auto hidden max-h-[80vh] w-auto max-w-full object-contain"
+            />
+          ))}
+          <figcaption class="mx-auto mt-4 flex max-w-3xl items-baseline justify-center gap-3 text-center text-sm text-background/80">
+            <span data-lightbox-caption />
+            {!single && <span data-lightbox-counter aria-live="polite" class="shrink-0 tabular-nums text-background/55" />}
+          </figcaption>
+        </figure>
+      </div>
+    </figure>
+  )
+}
+
+<script>
+  /* Justified rows, after the Moments gallery: rows are planned for the whole
+     set at once by dynamic programming, so the reading order never changes. */
+  const SLOTS_WIDE = 3;
+  const SLOTS_NARROW = 2;
+  const FRAMES_MAX = 3;
+  const STACK_COST = 0.12;
+  const LONE_COST = 0.6;
+  /* A stack narrower than this share of the row is two thumbnails. */
+  const STACK_MIN_SHARE = 0.35;
+
+  type Slot = number[];
+  type Row = Slot[];
+
+  interface Board {
+    container: HTMLElement;
+    frames: HTMLElement[];
+    ratios: number[];
+    key: string;
+  }
+
+  /** Height per unit of width. */
+  const ratioOf = (frame: HTMLElement) => {
+    const image = frame.querySelector("img");
+    const width = Number(image?.getAttribute("width")) || image?.naturalWidth;
+    const height = Number(image?.getAttribute("height")) || image?.naturalHeight;
+    return width && height ? height / width : 1;
+  };
+
+  const plan = (ratios: number[], width: number, gap: number, slotsAcross: number): Row[] => {
+    const count = ratios.length;
+    const target = (width / slotsAcross) * 0.95;
+    const memo = new Map<number, { cost: number; rows: Row[] }>();
+
+    const slotAspect = (slot: Slot) => 1 / slot.reduce((sum, index) => sum + ratios[index], 0);
+
+    const rowCost = (slots: Row, isLast: boolean) => {
+      const aspects = slots.reduce((sum, slot) => sum + slotAspect(slot), 0);
+      const height = (width - gap * (slots.length - 1)) / aspects;
+      let cost = ((height - target) / target) ** 2;
+
+      if (height < target * 0.55) cost += 2;
+
+      slots.forEach((slot) => {
+        if (slot.length === 1) return;
+        cost += STACK_COST;
+        if (height * slotAspect(slot) < width * STACK_MIN_SHARE) cost += 2;
+      });
+      if (slots.length === 1 && !isLast) cost += LONE_COST;
+
+      return isLast ? cost * 0.5 : cost;
+    };
+
+    const solve = (start: number): { cost: number; rows: Row[] } => {
+      if (start >= count) return { cost: 0, rows: [] };
+
+      const cached = memo.get(start);
+      if (cached) return cached;
+
+      let best: { cost: number; rows: Row[] } | null = null;
+
+      const extend = (next: number, slots: Row) => {
+        if (slots.length) {
+          const isLast = next >= count;
+          const rest = isLast ? { cost: 0, rows: [] as Row[] } : solve(next);
+          const cost = rowCost(slots, isLast) + rest.cost;
+          if (!best || cost < best.cost) best = { cost, rows: [slots, ...rest.rows] };
+        }
+
+        const used = next - start;
+        if (next >= count || slots.length >= slotsAcross || used >= FRAMES_MAX) return;
+
+        extend(next + 1, [...slots, [next]]);
+
+        if (next + 1 < count && count > 2 && used + 2 <= FRAMES_MAX) {
+          extend(next + 2, [...slots, [next, next + 1]]);
+        }
+      };
+
+      extend(start, []);
+      const result = best ?? { cost: 0, rows: [] };
+      memo.set(start, result);
+      return result;
+    };
+
+    return solve(0).rows;
+  };
+
+  const build = ({ container, frames, ratios }: Board, rows: Row[]) => {
+    container.querySelectorAll(".gallery-row, .gallery-stack").forEach((node) => node.remove());
+    container.classList.add("is-justified");
+
+    rows.forEach((slots) => {
+      const row = document.createElement("div");
+      row.className = "gallery-row";
+
+      slots.forEach((slot) => {
+        const aspect = 1 / slot.reduce((sum, index) => sum + ratios[index], 0);
+
+        if (slot.length === 1) {
+          const frame = frames[slot[0]];
+          frame.style.setProperty("--slot-aspect", String(aspect));
+          row.append(frame);
+          return;
+        }
+
+        const stack = document.createElement("div");
+        stack.className = "gallery-stack";
+        stack.style.setProperty("--slot-aspect", String(aspect));
+
+        slot.forEach((index) => {
+          const frame = frames[index];
+          frame.style.setProperty("--stack-share", String(ratios[index]));
+          frame.style.removeProperty("--slot-aspect");
+          stack.append(frame);
+        });
+
+        row.append(stack);
+      });
+
+      container.append(row);
+    });
+  };
+
+  const layout = (board: Board) => {
+    const width = board.container.getBoundingClientRect().width;
+    const gap = Number.parseFloat(getComputedStyle(board.container).getPropertyValue("--gallery-gap")) || 0;
+    const slotsAcross = window.matchMedia("(min-width: 64rem)").matches ? SLOTS_WIDE : SLOTS_NARROW;
+    // Rounded so a scrollbar appearing does not replan on every frame.
+    const key = `${slotsAcross}:${Math.round(width / 40)}`;
+
+    if (!width || board.key === key) return;
+
+    board.key = key;
+    build(board, plan(board.ratios, width, gap, slotsAcross));
+  };
+
+  const boards: Board[] = [...document.querySelectorAll<HTMLElement>("[data-gallery]")]
+    .map((container) => {
+      const frames = [...container.querySelectorAll<HTMLElement>(".gallery-frame")];
+      return { container, frames, ratios: frames.map(ratioOf), key: "" };
+    })
+    .filter((board) => board.frames.length > 1);
+
+  if (boards.length) {
+    const run = () => boards.forEach(layout);
+    run();
+
+    let queued = false;
+    window.addEventListener(
+      "resize",
+      () => {
+        if (queued) return;
+        queued = true;
+        window.requestAnimationFrame(() => {
+          queued = false;
+          run();
+        });
+      },
+      { passive: true },
+    );
+  }
+
+  document.querySelectorAll<HTMLElement>("[data-gallery-root]").forEach((root) => {
+    const tiles = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-gallery-tile]"));
+    const total = tiles.length;
+    const lightbox = root.querySelector<HTMLElement>("[data-gallery-lightbox]");
+    const images = Array.from(root.querySelectorAll<HTMLImageElement>("[data-lightbox-image]"));
+    const caption = root.querySelector<HTMLElement>("[data-lightbox-caption]");
+    const counter = root.querySelector<HTMLElement>("[data-lightbox-counter]");
+    const closeBtn = root.querySelector<HTMLButtonElement>("[data-gallery-close]");
+    const prevBtn = root.querySelector<HTMLButtonElement>("[data-gallery-lb-prev]");
+    const nextBtn = root.querySelector<HTMLButtonElement>("[data-gallery-lb-next]");
+    if (!lightbox) return;
+
+    let current: number | null = null;
+    let bodyOverflow = "";
+    let previouslyFocused: Element | null = null;
+    let startX = 0;
+    let startY = 0;
+    let pointerId: number | null = null;
+
+    const render = () => {
+      if (current === null) return;
+      images.forEach((img) => {
+        const active = Number(img.dataset.index) === current;
+        img.classList.toggle("hidden", !active);
+        if (active) img.loading = "eager";
+      });
+      if (caption) caption.textContent = tiles[current]?.dataset.caption ?? "";
+      if (counter) counter.textContent = `${current + 1} / ${total}`;
+    };
+
+    const open = (index: number) => {
+      current = index;
+      previouslyFocused = document.activeElement;
+      lightbox.classList.remove("hidden");
+      lightbox.classList.add("flex");
+      bodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      render();
+      closeBtn?.focus({ preventScroll: true });
+    };
+
+    const close = () => {
+      current = null;
+      lightbox.classList.add("hidden");
+      lightbox.classList.remove("flex");
+      document.body.style.overflow = bodyOverflow;
+      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus({ preventScroll: true });
+      previouslyFocused = null;
+    };
+
+    const step = (by: number) => {
+      if (current === null || total < 2) return;
+      current = (current + by + total) % total;
+      render();
+    };
+
+    tiles.forEach((tile) => tile.addEventListener("click", () => open(Number(tile.dataset.index))));
+    closeBtn?.addEventListener("click", close);
+    prevBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      step(-1);
+    });
+    nextBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      step(1);
+    });
+    lightbox.addEventListener("click", (e) => {
+      if (e.target === lightbox) close();
+    });
+    lightbox.addEventListener("pointerdown", (e) => {
+      if (current === null || (e.target as HTMLElement).closest("button")) return;
+      startX = e.clientX;
+      startY = e.clientY;
+      pointerId = e.pointerId;
+    });
+    lightbox.addEventListener("pointerup", (e) => {
+      if (current === null || pointerId !== e.pointerId) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      pointerId = null;
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+      step(dx < 0 ? 1 : -1);
+    });
+    lightbox.addEventListener("pointercancel", () => {
+      pointerId = null;
+    });
+    window.addEventListener("keydown", (e) => {
+      if (current === null) return;
+      if (e.key === "Escape") close();
+      if (e.key === "ArrowRight") step(1);
+      if (e.key === "ArrowLeft") step(-1);
+      if (e.key === "Tab") {
+        // Keep focus inside the viewer while it is open.
+        const focusable = [closeBtn, prevBtn, nextBtn].filter((b): b is HTMLButtonElement => !!b && b.offsetParent !== null);
+        const i = focusable.indexOf(document.activeElement as HTMLButtonElement);
+        e.preventDefault();
+        focusable[(i + (e.shiftKey ? -1 : 1) + focusable.length) % focusable.length]?.focus();
+      }
+    });
+  });
+</script>

@@ -1,0 +1,105 @@
+---
+import { Image } from "astro:assets";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SiteHeader from "@/components/SiteHeader.astro";
+import SiteFooter from "@/components/SiteFooter.astro";
+import { destinationHref } from "@/lib/content";
+import { getCollection } from "astro:content";
+
+import portrait from "@/assets/about/portrait.jpg";
+import band1 from "@/assets/about/band-1.jpg";
+import band2 from "@/assets/about/band-2.jpg";
+import band3 from "@/assets/about/band-3.jpg";
+import band4 from "@/assets/about/band-4.jpg";
+
+const destinations = await getCollection("destinations");
+const band = [band1, band2, band3, band4];
+---
+
+<BaseLayout
+  title="About Nora"
+  description="A slow-travel writer and photographer. Ten years on the road, a small notebook, and a lot of opinions about coffee."
+>
+  <div class="min-h-screen bg-background">
+    <SiteHeader />
+
+    <main id="main-content">
+    <section class="mx-auto max-w-7xl px-6 pt-14 lg:px-10 lg:pt-20">
+      <div class="grid gap-12 md:grid-cols-12 md:items-end">
+        <div class="md:col-span-7">
+          <h1 class="font-display text-5xl leading-[1] md:text-7xl lg:text-[5.5rem]">
+            I write about <span class="text-primary">staying</span>, not going
+          </h1>
+          <p class="mt-8 max-w-xl text-lg leading-relaxed text-muted-foreground">
+            Hi, I'm Nora. I've been writing this journal since 2019, mostly from third-floor apartments with bad
+            wifi and good windows. Ten years ago I quit a magazine job in Manila to see how long you could stretch
+            a plane ticket. It turns out: quite long.
+          </p>
+        </div>
+        <div class="md:col-span-5">
+          <div class="relative aspect-[4/5] overflow-hidden bg-muted">
+            <Image src={portrait} alt="Portrait of Nora" widths={[480, 720, 900]} sizes="(max-width: 767px) 100vw, 42vw" class="h-full w-full object-cover" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mx-auto mt-24 max-w-3xl px-6 lg:mt-32">
+      <h2 class="font-display text-4xl leading-tight md:text-5xl">What Passporto actually is</h2>
+      <div class="prose-editorial mt-8">
+        <p>
+          This is a small independent publication about slow travel — the kind that requires a paperback and a
+          rain jacket, and doesn't benefit from a spreadsheet. I publish one long essay every other Sunday, and a
+          longer destination guide four or five times a year.
+        </p>
+        <p>
+          There are no sponsored posts. There are no affiliate links. If a hotel is here, I paid for it. If a
+          restaurant is here, I ate there twice.
+        </p>
+        <blockquote>
+          The best travel writing is a form of biography — of a place, of a moment, and, unavoidably, of the person
+          doing the walking.
+        </blockquote>
+        <p>
+          The journal is read by around 12,000 people in 62 countries. Some of them write back. Those emails are
+          the reason it still exists.
+        </p>
+      </div>
+    </section>
+
+    <section class="mx-auto mt-24 grid max-w-7xl grid-cols-2 gap-3 px-6 lg:mt-32 md:grid-cols-4 lg:px-10">
+      {
+        band.map((image) => (
+          <div class="relative aspect-[3/4] overflow-hidden">
+            <Image
+              src={image}
+              alt=""
+              widths={[350, 525, 700]}
+              sizes="(max-width: 767px) 50vw, 25vw"
+              loading="lazy"
+              class="h-full w-full object-cover transition-transform duration-[1200ms] hover:scale-105"
+            />
+          </div>
+        ))
+      }
+    </section>
+
+    <section class="mx-auto my-24 max-w-7xl px-6 lg:my-32 lg:px-10"><div class="bg-sand/45 px-6 py-14 text-center md:py-20">
+      <h2 class="font-display text-4xl md:text-5xl">Read the latest dispatch</h2>
+      <p class="mx-auto mt-4 max-w-lg text-muted-foreground">
+        Or wander the archive — six years of essays, guides, and half-decent photographs.
+      </p>
+      <div class="mt-8 flex flex-wrap justify-center gap-3">
+        <a href="/blog/" class="btn bg-deep text-on-deep hover:bg-primary">
+          Open the journal
+        </a>
+        <a href={destinationHref(destinations[0])} class="btn border border-foreground/20 hover:border-foreground hover:bg-foreground hover:text-background">
+          Read a guide
+        </a>
+      </div>
+    </div>
+    </section>
+    </main>
+    <SiteFooter />
+  </div>
+</BaseLayout>

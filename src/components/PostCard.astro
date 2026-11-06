@@ -1,0 +1,43 @@
+---
+import { Image } from "astro:assets";
+import { formatDate, postHref, readingMinutes, type Post } from "@/lib/content";
+
+interface Props {
+  post: Post;
+  size?: "sm" | "md" | "lg";
+  sizes?: string;
+}
+
+const {
+  post,
+  size = "md",
+  sizes = "(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 33vw",
+} = Astro.props;
+const aspect = size === "sm" ? "aspect-[5/4]" : size === "lg" ? "aspect-[3/2]" : "aspect-[4/5]";
+---
+
+<a href={postHref(post)} class="group block">
+  <div class={`relative overflow-hidden bg-muted ${aspect}`}>
+    <Image
+      src={post.data.cover.src}
+      alt={post.data.cover.alt}
+      widths={[400, 600, 800, 1000, 1200]}
+      sizes={sizes}
+      loading="lazy"
+      decoding="async"
+      class="h-full w-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.04]"
+    />
+    <span class="tag absolute left-3 top-3">{post.data.category}</span>
+  </div>
+  <div class="mt-4">
+    <h3 class="font-display text-[1.5rem] leading-[1.15] transition-colors group-hover:text-primary md:text-[1.625rem]">
+      {post.data.title}
+    </h3>
+    <p class="mt-2 line-clamp-2 text-[0.9375rem] leading-relaxed text-muted-foreground">
+      {post.data.dek}
+    </p>
+    <p class="meta mt-3">
+      {post.data.location} · <time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time> · {readingMinutes(post)} min
+    </p>
+  </div>
+</a>
